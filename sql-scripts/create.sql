@@ -4,7 +4,7 @@ open schema :schema;
 
 create or replace lua script Z_INTERNAL_LIBRARY() as
 script_schema = exa.meta.script_schema
-newest_version = "0.02"
+newest_version = "0.03"
 table_res = {}
 
 --
@@ -656,7 +656,7 @@ install = {
                     c.CONFLICT_SESSION_ID = h.SESSION_ID]],true},
     {"0.02","Update Version Info","UPDATE ::schema.GLOBAL_PARMS SET PARAM_VALUE = '0.02' WHERE PARAM_NAME = 'VERSION'", true},
     {"0.03", "Add Primary key to parms","ALTER TABLE ::schema.GLOBAL_PARMS ADD CONSTRAINT PK_GLOBAL_PARMS PRIMARY KEY (PARAM_NAME) ENABLE", true},
-    {"0.03","Update Version Info","UPDATE ::schema.GLOBAL_PARMS SET PARAM_VALUE = '0.02' WHERE PARAM_NAME = 'VERSION'", true}
+    {"0.03","Update Version Info","UPDATE ::schema.GLOBAL_PARMS SET PARAM_VALUE = '0.03' WHERE PARAM_NAME = 'VERSION'", true}
 
 }            
 local installed_version = z_lib.get_version()
