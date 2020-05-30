@@ -570,16 +570,48 @@ install = {
                     AND q.STMT_ID = l.STMT_ID
         ]],true},
     {"0.02","Create Index Daily Statistics",[[CREATE OR REPLACE
-                    VIEW ::schema.INDEX_DAILY_STATISTICS AS
+                VIEW STATISTICS.INDEX_DAILY_STATISTICS AS
+                SELECT
+                    edi.INDEX_SCHEMA AS TABLE_SCHEMA,
+                    edi.INDEX_TABLE AS TABLE_NAME,
+                    edi.INDEX_TYPE,
+                    edi.REMARKS AS INDEX_DEFINITION,
+                    TO_DATE(TRUNC(edas.START_TIME, 'DD')) AS "ACCESS_DATE",
+                    ROUND(MAX(edi.MEM_OBJECT_SIZE) /(1024 * 1024 * 1024.0), 2) AS SIZE_IN_GB,
+                    COALESCE(MAX(edas.start_time),
+                    TO_TIMESTAMP('1900-01-01')) AS LAST_ACCESS,
+                    SUM(CASE WHEN edas.start_time IS null THEN 0 ELSE 1 end) AS ACCESS_COUNT,
+                    'drop ' || edi.index_type || ' index on "' || edi.INDEX_SCHEMA || '"."' || edi.INDEX_TABLE || '"' || REPLACE(REGEXP_REPLACE(REPLACE(edi.REMARKS, edi.index_type), '([^,\)\(]+)', '"\1"'),
+                    '" INDEX "',
+                    '')|| ';' AS drop_statement
+                FROM
+                    sys.EXA_DBA_INDICES edi
+                LEFT OUTER JOIN STATISTICS.EXA_AUDIT_INDEX_USAGE aiu ON
+                    edi.INDEX_SCHEMA = aiu.OBJECT_SCHEMA
+                    AND edi.INDEX_TABLE = AIU.OBJECT_NAME
+                    AND edi.INDEX_TYPE = aiu.INDEX_TYPE
+                    AND edi.REMARKS = aiu.REMARKS
+                LEFT OUTER JOIN "$EXA_STATS_AUDIT_SQL" edas ON
+                    aiu.SESSION_ID = edas.SESSION_ID
+                    AND aiu.STMT_ID = edas.STMT_ID
+                GROUP BY
+                    edi.INDEX_SCHEMA,
+                    edi.INDEX_TABLE,
+                    edi.INDEX_TYPE,
+                    local.access_date,
+                    edi.REMARKS
+        ]],true},
+    {"0.02","Create Index Statistics",[[CREATE OR REPLACE
+                    VIEW STATISTICS.INDEX_STATISTICS AS
                     SELECT
                         edi.INDEX_SCHEMA AS TABLE_SCHEMA,
                         edi.INDEX_TABLE AS TABLE_NAME,
                         edi.INDEX_TYPE,
                         edi.REMARKS AS INDEX_DEFINITION,
-                        TO_DATE(TRUNC(edas.START_TIME, 'DD')) AS "ACCESS_DATE",
                         ROUND(MAX(edi.MEM_OBJECT_SIZE) /(1024 * 1024 * 1024.0), 2) AS SIZE_IN_GB,
-                        COUNT(*) AS ACCESS_COUNT,
-                        COALESCE(MAX(edas.start_time),TO_TIMESTAMP('1900-01-01' )) AS LAST_ACCESS,
+                        COALESCE(MAX(edas.start_time),
+                        TO_TIMESTAMP('1900-01-01')) AS LAST_ACCESS,
+                        SUM(CASE WHEN edas.start_time IS null THEN 0 ELSE 1 end) AS ACCESS_COUNT,
                         'drop ' || edi.index_type || ' index on "' || edi.INDEX_SCHEMA || '"."' || edi.INDEX_TABLE || '"' || REPLACE(REGEXP_REPLACE(REPLACE(edi.REMARKS, edi.index_type), '([^,\)\(]+)', '"\1"'),
                         '" INDEX "',
                         '')|| ';' AS drop_statement
@@ -597,38 +629,7 @@ install = {
                         edi.INDEX_SCHEMA,
                         edi.INDEX_TABLE,
                         edi.INDEX_TYPE,
-                        local.access_date,
                         edi.REMARKS
-        ]],true},
-    {"0.02","Create Index Statistics",[[CREATE OR REPLACE
-    VIEW ::schema.INDEX_STATISTICS AS
-        SELECT
-            edi.INDEX_SCHEMA AS TABLE_SCHEMA,
-            edi.INDEX_TABLE AS TABLE_NAME,
-            edi.INDEX_TYPE,
-            edi.REMARKS AS INDEX_DEFINITION,
-            ROUND(MAX(edi.MEM_OBJECT_SIZE) /(1024 * 1024 * 1024.0), 2) AS SIZE_IN_GB,
-            COUNT(*) AS ACCESS_COUNT,
-            COALESCE(MAX(edas.start_time),
-            TO_TIMESTAMP('1900-01-01' )) AS LAST_ACCESS,
-            'drop ' || edi.index_type || ' index on "' || edi.INDEX_SCHEMA || '"."' || edi.INDEX_TABLE || '"' || REPLACE(REGEXP_REPLACE(REPLACE(edi.REMARKS, edi.index_type), '([^,\)\(]+)', '"\1"'),
-            '" INDEX "',
-            '')|| ';' AS drop_statement
-        FROM
-            sys.EXA_DBA_INDICES edi
-        LEFT OUTER JOIN STATISTICS.EXA_AUDIT_INDEX_USAGE aiu ON
-            edi.INDEX_SCHEMA = aiu.OBJECT_SCHEMA
-            AND edi.INDEX_TABLE = AIU.OBJECT_NAME
-            AND edi.INDEX_TYPE = aiu.INDEX_TYPE
-            AND edi.REMARKS = aiu.REMARKS
-        LEFT OUTER JOIN "$EXA_STATS_AUDIT_SQL" edas ON
-            aiu.SESSION_ID = edas.SESSION_ID
-            AND aiu.STMT_ID = edas.STMT_ID
-        GROUP BY
-            edi.INDEX_SCHEMA,
-            edi.INDEX_TABLE,
-            edi.INDEX_TYPE,
-            edi.REMARKS
         ]],true},
     {"0.02","Create Transaction Conflict View",[[CREATE OR REPLACE
                 VIEW ::schema.TRANSACTION_CONFLICT AS
